@@ -12,15 +12,16 @@ torch.manual_seed(123)
 torch.cuda.manual_seed(123)
 
 class CharacterEmbedLayer(nn.Module):
-    def __init__(self, char_vocab_size, char_embed_size, cnn_out_channels, dropout=0.2):
+    def __init__(self, char_vocab_size, char_embed_size, cnn_out_channels, device, dropout=0.2):
         super(CharacterEmbedLayer, self).__init__()
 
         self.char_embed_size = char_embed_size
         self.out_channels = cnn_out_channels
+        self.device = device
 
         self.embedding = nn.Embedding(char_vocab_size, char_embed_size, padding_idx=1)
         self.char_conv = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=cnn_out_channels, kernel_size=(3, 3), stride=(1, 1)),
+            nn.Conv2d(in_channels=1, out_channels=cnn_out_channels, kernel_size=(5, char_embed_size), stride=(1, 1)),
             nn.ReLU()
         )
         self.dropout = nn.Dropout(dropout)
@@ -28,12 +29,19 @@ class CharacterEmbedLayer(nn.Module):
     def forward(self, x):
         # x: [batch_size, seq_len, word_len]
         batch_size = x.size(0)
+        seq_len = x.size(1)
         word_len = x.size(2)
+
         out = self.embedding(x) # [batch_size, seq_len, word_len, char_embed_size]
         out = self.dropout(out)
         out = out.view(-1, word_len, self.char_embed_size) # [batch_size * seq_len, word_len, char_embed_size]
         out = out.unsqueeze(1) # in_channels = 1
-        out = self.char_conv(out) # [batch_size * seq_len, out_channels, conv_out_H, conv_out_W]
+
+        if word_len < 5: # batch_size太小，有的batch中word_len小于5,需要填充，否则cnn会报错
+            padding = torch.zeros(batch_size * seq_len, 1, 5-word_len, self.char_embed_size, device=self.device)
+            out = torch.cat((out, padding), dim=2) # [batch_size * seq_len, 5, char_embed_size]
+
+        out = self.char_conv(out) # [batch_size * seq_len, out_channels, conv_out_H, 1]
         out = F.max_pool2d(out, kernel_size=(out.size(-2), out.size(-1))) # [batch_size * seq_len, out_channels, 1, 1]
         out = out.squeeze()
         out = out.view(batch_size, -1, self.out_channels) # [batch_size, seq_len, out_channels]
@@ -193,7 +201,7 @@ class BidafModel(nn.Module):
     def __init__(self, config):
         super(BidafModel, self).__init__()
 
-        self.char_embed = CharacterEmbedLayer(config.char_vocab_size, config.char_embed_size, config.cnn_out_channels)
+        self.char_embed = CharacterEmbedLayer(config.char_vocab_size, config.char_embed_size, config.cnn_out_channels, config.device)
         self.word_embed = WordEmbedLayer(pretrained=config.pretrained)
         self.contextual_embed = ContextualEmbedLayer(config.embed_size, config.hidden_size)
 

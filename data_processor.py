@@ -103,8 +103,8 @@ class DataProcessor():
         dump = []
         abnormals = [' ', '\n', '\u3000', '\u202f', '\u2009'] # 空格、换行字符
 
-        src_train_path = Path(config.data_dir).joinpath('train-v2.0.json')
-        src_dev_path = Path(config.data_dir).joinpath('dev-v2.0.json')
+        src_train_path = Path(config.data_dir).joinpath('train.json')
+        src_dev_path = Path(config.data_dir).joinpath('dev.json')
         src_path = {'train': src_train_path, 'dev': src_dev_path}
         
         os.makedirs(config.preprocessed_dir)
@@ -170,12 +170,12 @@ class DataProcessor():
                                                     ('e_idx', e_idx)
                                                 ])
                                             )
-                    break # for debug
+                    # break # for debug
                     
             with open(dst_path[data_type], 'w', encoding='utf-8') as f:
                 for line in dump:
-                    json.dump(line, f)
-                    print('', file=f)
+                    json_str = json.dumps(line, ensure_ascii=False)
+                    f.write(json_str + '\n')
 
 if __name__ == '__main__':
     class Config:
@@ -213,5 +213,3 @@ if __name__ == '__main__':
         e_idx = it.e_idx
         print(e_idx)
         break
-
-    # data_processor.preprocess_file(config)
