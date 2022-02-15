@@ -1,4 +1,4 @@
-# Bidaf_SQuAD_MC_Pytorch
+# Bidaf_SQuAD_MRC_Pytorch
 Pytorch实现Bidaf基于原文提取的机器阅读理解算法
 
 论文下载链接：https://arxiv.org/pdf/1611.01603.pdf
